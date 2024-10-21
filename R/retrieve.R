@@ -22,10 +22,24 @@ retrieve_uniprot_data <- function(accession) {
   # Check if the request was successful
   if (response$status_code == 200) {
     cli::cli_alert_success("Successfully retrieved data for {accession}")
+
     # Parse the response to JSON
     content_data <- httr::content(response, as = "text", encoding = "UTF-8")
-    json_data <- jsonlite::fromJSON(content_data)
-    return(json_data)
+
+    # Added check to ensure content_data is not empty or invalid
+    if (is.null(content_data) || nchar(content_data) == 0 || grepl("Not Found", content_data)) {
+      cli::cli_alert_warning("No valid data found for {accession}")
+      return(NULL)
+    }
+
+    # Attempt to parse JSON content with error handling
+    tryCatch({
+      json_data <- jsonlite::fromJSON(content_data)
+      return(json_data)
+    }, error = function(e) {
+      cli::cli_alert_danger("Failed to parse JSON for {accession}: {e$message}")
+      return(NULL)
+    })
   } else {
     cli::cli_alert_danger("Failed to retrieve data for {accession}. HTTP status: {response$status_code}")
     return(NULL)

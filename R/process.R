@@ -70,6 +70,12 @@ process_tibble_uniprot <- function(data,
       # Retrieve UniProt data
       uniprot_data <- retrieve_uniprot_data(data[[accession_col]][i])
 
+      # Added check to skip if no data is returned
+      if (is.null(uniprot_data)) {
+        cli::cli_alert_warning("Skipping row {i} due to missing or invalid UniProt data")
+        next
+      }
+
       # Parse UniProt data
       parsed_data <- parse_uniprot_data(uniprot_data)
 

@@ -186,7 +186,8 @@ launch_app <- function() {
       },
       content = function(file) {
         df <- processed_data()
-        utils::write.csv(df, file, row.names = FALSE)
+        # Set `na = ''` to replace NA values with an empty string in the output file
+        utils::write.csv(df, file, row.names = FALSE, na = "")
 
         # Log download event
         log_console("Processed data downloaded.")
