@@ -1,6 +1,8 @@
 # tests/testthat/test-process.R
 
 test_that("process_tibble_uniprot processes correctly", {
+  # Skip this test on CRAN to avoid issues specific to M1 Mac environments
+  skip_on_cran()
 
   # Test data (similar to what we had before)
   test_data <- tibble::tibble(
