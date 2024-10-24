@@ -18,6 +18,8 @@ data based on the provided UniProt accession number.
 }
 \examples{
 # Example usage
+\donttest{
 result <- retrieve_uniprot_data("O88737")
 print(result)
+}
 }
