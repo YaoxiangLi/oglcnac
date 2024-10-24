@@ -8,8 +8,10 @@
 #' @import httr jsonlite cli
 #' @examples
 #' # Example usage
+#' \donttest{
 #' result <- retrieve_uniprot_data("O88737")
 #' print(result)
+#' }
 #' @export
 retrieve_uniprot_data <- function(accession) {
   # Base URL for UniProt API
