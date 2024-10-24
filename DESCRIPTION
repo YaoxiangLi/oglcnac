@@ -1,6 +1,6 @@
 Package: oglcnac
 Title: Processing and Analysis of 'O-GlcNAcAtlas' Data
-Version: 0.1.4
+Version: 0.1.5
 Authors@R: c(
     person("Yaoxiang", "Li",
         role = c("aut", "cre"),
