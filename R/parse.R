@@ -43,9 +43,9 @@ parse_uniprot_data <- function(uniprot_data) {
 
   # Return the parsed data as a list
   result <- list(
-    entry_name = entry_name,
-    protein_name = protein_name,
-    gene_name = gene_name
+    entry_name = if (length(entry_name) > 1) paste(entry_name, collapse = ";") else entry_name,
+    protein_name = if (length(protein_name) > 1) paste(protein_name, collapse = ";") else protein_name,
+    gene_name = if (length(gene_name) > 1) paste(gene_name, collapse = ";") else gene_name
   )
 
   cli::cli_alert_info("Parsing completed.")
