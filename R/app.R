@@ -7,20 +7,53 @@
 #'
 #' @return None
 #' @export
-#' @importFrom shiny fluidPage sidebarLayout sidebarPanel mainPanel tabsetPanel tabPanel
-#'  titlePanel fileInput numericInput selectInput actionButton downloadButton verbatimTextOutput
-#'  renderText observeEvent updateSelectInput downloadHandler reactiveVal
-#'  req shinyApp fluidRow column tags p hr
-#' @importFrom DT datatable renderDT DTOutput
-#' @importFrom bslib bs_theme
-#' @importFrom readxl read_excel
-#' @importFrom shiny dialogViewer runGadget
-#'
 #' @examples
 #' if (interactive()) {
 #'   oglcnac::launch_app()
 #' }
 launch_app <- function() {
+  required_packages <- c("shiny", "DT", "bslib", "readxl")
+  missing_packages <- required_packages[
+    !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+  ]
+  if (length(missing_packages) > 0) {
+    cli::cli_abort("Install GUI packages before launching the app: {missing_packages}")
+  }
+
+  fluidPage <- shiny::fluidPage
+  sidebarLayout <- shiny::sidebarLayout
+  sidebarPanel <- shiny::sidebarPanel
+  mainPanel <- shiny::mainPanel
+  tabsetPanel <- shiny::tabsetPanel
+  tabPanel <- shiny::tabPanel
+  fileInput <- shiny::fileInput
+  numericInput <- shiny::numericInput
+  selectInput <- shiny::selectInput
+  actionButton <- shiny::actionButton
+  downloadButton <- shiny::downloadButton
+  verbatimTextOutput <- shiny::verbatimTextOutput
+  renderText <- shiny::renderText
+  observeEvent <- shiny::observeEvent
+  updateSelectInput <- shiny::updateSelectInput
+  downloadHandler <- shiny::downloadHandler
+  reactiveVal <- shiny::reactiveVal
+  req <- shiny::req
+  shinyApp <- shiny::shinyApp
+  fluidRow <- shiny::fluidRow
+  column <- shiny::column
+  tags <- shiny::tags
+  p <- shiny::p
+  hr <- shiny::hr
+  textInput <- shiny::textInput
+  checkboxInput <- shiny::checkboxInput
+  dialogViewer <- shiny::dialogViewer
+  runGadget <- shiny::runGadget
+  DTOutput <- DT::DTOutput
+  renderDT <- DT::renderDT
+  datatable <- DT::datatable
+  bs_theme <- bslib::bs_theme
+  read_excel <- readxl::read_excel
+
   # Define the UI
   ui <- fluidPage(
     theme = bs_theme(
@@ -48,9 +81,8 @@ launch_app <- function() {
         sidebarPanel(
           width = 4, # Adjust sidebar width to leave more space for content
 
-          p("This application allows you to upload and process UniProt data files in CSV, TSV, or Excel format.
-             You can preview the data, select specific columns for entry name, protein name, gene name, and other
-             relevant fields. After processing the data, you can download the updated file for further analysis."),
+          p("Upload Atlas curator files in CSV, TSV, or Excel format. The app can validate Atlas columns,
+             preserve dataset-I/dataset-II labels, enrich UniProt fields, and export clean CSV files."),
           p("Please select a file to begin the data processing workflow."),
           hr(),
           fileInput("file", "Upload your Excel, CSV, or TSV file", accept = c(".xlsx", ".csv", ".tsv")),
@@ -60,29 +92,44 @@ launch_app <- function() {
           # Dropdown menus arranged in pairs to save vertical space
           fluidRow(
             column(6, numericInput("n_rows", "Process first N rows", value = 20, min = 1)),
-            column(6, selectInput("accession_col", "Accession Column", choices = NULL))
+            column(6, selectInput(
+              "atlas_dataset",
+              "Atlas Dataset",
+              choices = c(
+                "Do not change" = "",
+                "Unambiguous sites (dataset-I)" = "unambiguous",
+                "Ambiguous sites (dataset-II)" = "ambiguous"
+              )
+            ))
           ),
           fluidRow(
-            column(6, selectInput("accession_source_col", "Source Column", choices = NULL)),
-            column(6, selectInput("entry_name_col", "Entry Name Column", choices = NULL))
+            column(6, selectInput("accession_col", "Accession Column", choices = NULL)),
+            column(6, selectInput("accession_source_col", "Source Column", choices = NULL))
           ),
           fluidRow(
-            column(6, selectInput("protein_name_col", "Protein Name Column", choices = NULL)),
-            column(6, selectInput("gene_name_col", "Gene Name Column", choices = NULL))
+            column(6, selectInput("entry_name_col", "Entry Name Column", choices = NULL)),
+            column(6, selectInput("protein_name_col", "Protein Name Column", choices = NULL))
           ),
+          fluidRow(
+            column(6, selectInput("gene_name_col", "Gene Name Column", choices = NULL)),
+            column(6, checkboxInput("use_cache", "Use UniProt cache", value = TRUE))
+          ),
+          textInput("cache_path", "Cache path", value = "~/.cache/oglcnac/uniprot-cache.rds"),
 
           # Add horizontal line to separate sections
           hr(),
 
           # Action buttons
-          actionButton("process", "Process Data", class = "btn-primary"),
-          downloadButton("download", "Download Processed Data", class = "btn-success")
+          actionButton("validate", "Validate Atlas Data", class = "btn-secondary"),
+          actionButton("process", "Process UniProt Data", class = "btn-primary"),
+          downloadButton("download", "Download Processed CSV", class = "btn-success")
         ),
         mainPanel(
           width = 8, # Expand the main panel to fit more content
           tabsetPanel(
             tabPanel("Preview Data", DTOutput("preview")),
             tabPanel("Processed Data", DTOutput("result")),
+            tabPanel("Validation", DTOutput("validation")),
             tabPanel("Status", verbatimTextOutput("status"))
           )
         )
@@ -95,6 +142,7 @@ launch_app <- function() {
     # Reactive value to store uploaded data
     uploaded_data <- reactiveVal()
     processed_data <- reactiveVal()
+    validation_result <- reactiveVal()
 
     # Reactive value to store logs
     logs <- reactiveVal("")
@@ -111,6 +159,27 @@ launch_app <- function() {
       logs()
     })
 
+    output$validation <- renderDT({
+      result <- validation_result()
+      if (is.null(result)) {
+        return(datatable(data.frame(message = "No validation has been run."), options = list(dom = "t")))
+      }
+      messages <- c(result$errors, result$warnings)
+      if (!length(messages)) {
+        table <- data.frame(type = "ok", message = "Validation passed.", stringsAsFactors = FALSE)
+      } else {
+        table <- data.frame(
+          type = c(rep("error", length(result$errors)), rep("warning", length(result$warnings))),
+          message = messages,
+          stringsAsFactors = FALSE
+        )
+      }
+      datatable(
+        table,
+        options = list(scrollX = TRUE)
+      )
+    })
+
     # Handle file upload and preview
     observeEvent(input$file, {
       req(input$file)
@@ -120,7 +189,7 @@ launch_app <- function() {
       df <- switch(ext,
         csv = utils::read.csv(input$file$datapath),
         tsv = utils::read.delim(input$file$datapath),
-        xlsx = readxl::read_excel(input$file$datapath),
+        xlsx = read_excel(input$file$datapath),
         stop("Invalid file format")
       )
 
@@ -145,6 +214,21 @@ launch_app <- function() {
       log_console("Preview of the loaded data generated.")
     })
 
+    observeEvent(input$validate, {
+      req(uploaded_data())
+
+      result <- validate_atlas_data(uploaded_data(), dataset = input$atlas_dataset)
+      validation_result(result)
+      if (result$valid) {
+        log_console("Atlas validation passed.")
+      } else {
+        log_console("Atlas validation failed: ", paste(result$errors, collapse = " | "))
+      }
+      if (length(result$warnings)) {
+        log_console("Validation warnings: ", paste(result$warnings, collapse = " | "))
+      }
+    })
+
     # Process data when the process button is clicked
     observeEvent(input$process, {
       req(uploaded_data())
@@ -158,14 +242,23 @@ launch_app <- function() {
         df <- utils::head(df, input$n_rows)
       }
 
-      # Process the data using the process_tibble_uniprot function
-      processed_df <- process_tibble_uniprot(df,
+      validation <- validate_atlas_data(df, dataset = input$atlas_dataset)
+      validation_result(validation)
+      if (!validation$valid) {
+        log_console("Atlas validation failed before processing: ", paste(validation$errors, collapse = " | "))
+        return(NULL)
+      }
+
+      cache_path <- if (isTRUE(input$use_cache)) path.expand(input$cache_path) else NULL
+      processed_df <- process_tibble_uniprot_cached(df,
+        cache_path = cache_path,
         accession_col = input$accession_col,
         accession_source_col = input$accession_source_col,
         entry_name_col = input$entry_name_col,
         protein_name_col = input$protein_name_col,
         gene_name_col = input$gene_name_col
       )
+      processed_df <- prepare_atlas_data(processed_df, dataset = input$atlas_dataset)
 
       # Store the processed data
       processed_data(processed_df)
@@ -185,7 +278,7 @@ launch_app <- function() {
         paste("processed_data.csv")
       },
       content = function(file) {
-        df <- processed_data()
+        df <- prepare_atlas_data(processed_data(), dataset = input$atlas_dataset)
         # Set `na = ''` to replace NA values with an empty string in the output file
         utils::write.csv(df, file, row.names = FALSE, na = "")
 

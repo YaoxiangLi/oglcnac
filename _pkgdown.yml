@@ -1,0 +1,30 @@
+url: https://yaoxiangli.github.io/oglcnac/
+
+template:
+  bootstrap: 5
+
+home:
+  title: Processing and analysis helpers for O-GlcNAcAtlas data
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [github]
+
+reference:
+  - title: UniProt enrichment
+    contents:
+      - retrieve_uniprot_data
+      - parse_uniprot_data
+      - process_tibble_uniprot
+      - process_tibble_uniprot_cached
+      - compare_tibbles_uniprot
+  - title: Atlas data updates
+    contents:
+      - validate_atlas_data
+      - prepare_atlas_data
+      - export_atlas_csv
+      - compare_atlas_tables
+  - title: App
+    contents:
+      - launch_app
