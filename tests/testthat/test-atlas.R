@@ -60,3 +60,27 @@ test_that("compare_atlas_tables summarizes changed row ids", {
   expect_equal(summary$removed_ids, 1)
   expect_equal(summary$shared_ids, 1)
 })
+
+test_that("validate_atlas_data warns but does not fail on curator text fields", {
+  atlas <- tibble::tibble(
+    id = 1,
+    species = "human",
+    sample_type = "cells",
+    accession = "",
+    accession_source = "OtherDB",
+    entry_name = "",
+    protein_name = "Protein",
+    gene_name = "GENE",
+    peptide_seq = "AAAASTAAAA",
+    site_residue = "S",
+    position_in_peptide = "5",
+    position_in_protein = "100/101",
+    method = "MS",
+    analytical_throughput = "HTP",
+    pmid = "123;456"
+  )
+
+  result <- validate_atlas_data(atlas, dataset = "ambiguous")
+  expect_true(result$valid)
+  expect_true(length(result$warnings) >= 2)
+})

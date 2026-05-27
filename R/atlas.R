@@ -41,14 +41,19 @@ validate_atlas_data <- function(data, dataset = NULL) {
   }
 
   if ("accession" %in% names(data) && any(is.na(data$accession) | !nzchar(trimws(as.character(data$accession))))) {
-    errors <- c(errors, "Some rows have empty accession values.")
+    warnings <- c(warnings, "Some rows have empty accession values.")
   }
 
   for (col in intersect(c("id", "position_in_peptide", "position_in_protein", "pmid"), names(data))) {
     suppressWarnings(numeric_values <- as.numeric(data[[col]]))
     bad_rows <- which(!is.na(data[[col]]) & nzchar(trimws(as.character(data[[col]]))) & is.na(numeric_values))
     if (length(bad_rows) > 0) {
-      errors <- c(errors, paste0("Column `", col, "` has non-numeric values."))
+      message <- paste0("Column `", col, "` has non-numeric values.")
+      if (col == "id") {
+        errors <- c(errors, message)
+      } else {
+        warnings <- c(warnings, message)
+      }
     }
   }
 
